@@ -210,3 +210,37 @@ class Trainer:
             return total_loss / len(loader.dataset), accuracy
         else:
             return accuracy, all_preds, all_targets
+
+class Trainer_for_KD(Trainer):
+    def __init__(self, 
+                 teacher_model, 
+                 projection,
+                 KD_loss,           # KLDivLoss, MSELoss, lambda_kl
+                 *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.teacher_model = teacher_model
+        self.projection = projection
+
+        # Unpack KD loss
+        self.KLDivLoss = KD_loss['KLDivLoss']
+        self.MSELoss = KD_loss['MSELoss']
+        self.lambda_kl = KD_loss['lambda_kl']
+    
+    def train(self, teacher_loader, student_train_loader, student_val_loader, early_stopping):
+        self.model.train()
+        self.teacher_model.eval()
+
+    def _compute_gram_matrix(self, feat):
+        B, C, N = feat.size()
+
+        gram = torch.bmm(feat, feat.transpose(1, 2))
+
+        return gram / N
+
+    def _train_epoch(self, teacher_loader, student_loader):
+        results = []
+        train_accuracies, val_accuracies = [], []
+        train_losses, val_losses = [], []
+
+        best_val_loss = float('inf')
