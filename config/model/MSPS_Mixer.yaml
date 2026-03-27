@@ -1,0 +1,14 @@
+in_channels: 3
+patch_dim: 128
+num_layers: [2, 2]
+dropout: 0.1
+activation: "relu"
+shift_size: 4
+shift: [3, -2, 2, -3]
+patches:
+  - [224, 2]
+  - [224, 4]
+num_patches: [112, 56]
+stride:
+  - [224, 2]
+  - [224, 4]

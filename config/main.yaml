@@ -1,0 +1,24 @@
+defaults:
+  - model: MSPS_Mixer
+  - data: STFT_PSplit
+  - _self_
+
+# General config
+experiment_name: "MSPS_STFT_test"
+num_classes: 6
+epochs: 200
+learning_rate: 1e-3
+batch_size: 32
+num_workers: 8
+weight_decay: 1e-4
+random_state: 2024
+
+# Loss config
+lambda_aux: 0.25
+temperature: 1
+
+# Paths
+main_path: "/home/eslab/Vscode/MSPS_Mixer"
+csv_path: "${main_path}/results"
+confusion_path: "${main_path}/results/confusion"
+best_model_path: "${main_path}/checkpoints"

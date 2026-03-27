@@ -1,0 +1,2 @@
+test accuracy : 93.97%
+lambda_aux: 0.25
