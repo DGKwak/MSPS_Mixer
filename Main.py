@@ -1,4 +1,3 @@
-import os
 import hydra
 from hydra.core.hydra_config import HydraConfig
 import torch
@@ -55,12 +54,12 @@ def main(cfg):
     logger.info(f"클래스 수: {len(train_dataset.classes)}")
     logger.info(f"클래스 목록: {train_dataset.classes}")
     
-    train_loader, val_loader, test_loader = make_dataloaders(train_dataset,
-                                                            val_dataset,
-                                                            test_dataset,
-                                                            cfg.num_workers,
-                                                            cfg.batch_size,
-                                                            cfg.data.random_state)
+    train_loader, val_loader, test_loader = make_dataloaders(train_dataset=train_dataset,
+                                                             val_dataset=val_dataset,
+                                                             test_dataset=test_dataset,
+                                                             num_workers=cfg.num_workers,
+                                                             batch_size=cfg.batch_size,
+                                                             random_state=cfg.data.random_state)
     
     # Model
     model = MultiscaleMixer(

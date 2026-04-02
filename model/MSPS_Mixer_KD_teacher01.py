@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import einops
 
 # Select Activation Function
 def get_activation(activation):

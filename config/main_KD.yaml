@@ -1,6 +1,6 @@
 defaults:
-  - model: MSPS_Mixer
-  - data: STFT_PSplit
+  - model: MSPS_Mixer_KD
+  - data: STFT_KD
   - _self_
 
 # General config
@@ -23,3 +23,4 @@ main_path: "/home/eslab/Vscode/MSPS_Mixer"
 csv_path: "${main_path}/results"
 confusion_path: "${main_path}/results/confusion"
 best_model_path: "${main_path}/checkpoints"
+teacher_checkpoint: "${main_path}/checkpoints/MSPS_STFT_test_best_model_20260326_121355.pth"

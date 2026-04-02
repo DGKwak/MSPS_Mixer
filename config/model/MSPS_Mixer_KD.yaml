@@ -1,0 +1,31 @@
+in_channels: 3
+
+# Student model config
+student_patch_dim: 64
+student_num_layers: [2, 2]
+student_dropout: 0.1
+student_activation: "relu"
+student_shift_size: 4
+student_shift: [3, -2, 2, -3]
+student_patches:
+  - [96, 2]
+  - [96, 4]
+student_num_patches: [48, 24]
+student_stride:
+  - [96, 2]
+  - [96, 4]
+
+# Teacher model config
+teacher_patch_dim: 128
+teacher_num_layers: [2, 2]
+teacher_dropout: 0.1
+teacher_activation: "relu"
+teacher_shift_size: 4
+teacher_shift: [3, -2, 2, -3]
+teacher_patches:
+  - [224, 2]
+  - [224, 4]
+teacher_num_patches: [112, 56]
+teacher_stride:
+  - [224, 2]
+  - [224, 4]

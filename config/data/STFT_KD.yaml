@@ -1,0 +1,9 @@
+dataset_name: "UoG STFT"
+data_dir: "/home/eslab/Vscode/MSPS_Mixer/data/STFT_PSplit"
+train_dir: "${data.data_dir}/train"
+val_dir: "${data.data_dir}/val"
+test_dir: "${data.data_dir}/test"
+student_input_size: 96
+teacher_input_size: 224
+random_state: 42
+num_classes: 6

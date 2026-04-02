@@ -19,14 +19,24 @@ def make_datasets(train_dir,
     return train_dataset, val_dataset, test_dataset
 
 def make_dataloaders(train_dataset,
-                     val_dataset,
-                     test_dataset,
                      num_workers,
                      batch_size,
-                     random_state):
+                     random_state,
+                     val_dataset=None,
+                     test_dataset=None,
+                     mode='standard'):
 
     generator = torch.Generator()
     generator.manual_seed(random_state)
+
+    if mode == 'KD':
+        loader = DataLoader(train_dataset,
+                            num_workers=num_workers,
+                            batch_size=batch_size,
+                            shuffle=True,
+                            generator=generator)
+        
+        return loader
 
     # DataLoader
     train_loader = DataLoader(train_dataset,
@@ -44,5 +54,5 @@ def make_dataloaders(train_dataset,
                              num_workers=num_workers,
                              batch_size=batch_size,
                              shuffle=False)
-    
+
     return train_loader, val_loader, test_loader

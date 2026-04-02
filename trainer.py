@@ -5,6 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 from sklearn.metrics import classification_report
 from utils.visualization import plot_confusion_matrix
+from torch import nn
 
 class Trainer:
     def __init__(self,
@@ -187,7 +188,10 @@ class Trainer:
                 logit = self.model(x)
 
                 if mode == "Validation":
-                    main_loss = self.focal(logit, y)
+                    if self.focal is not None:
+                        main_loss = self.focal(logit, y)
+                    else:
+                        main_loss = self.cross_entropy(logit, y)
                     aux_loss = 0
 
                     z = self.model.get_Mixer_outputs()
@@ -215,7 +219,7 @@ class Trainer_for_KD(Trainer):
     def __init__(self, 
                  teacher_model, 
                  projection,
-                 KD_loss,           # KLDivLoss, MSELoss, lambda_kl
+                 KD_loss,           # KLDivLoss, MSELoss, lambda_kl, temperature
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -226,10 +230,65 @@ class Trainer_for_KD(Trainer):
         self.KLDivLoss = KD_loss['KLDivLoss']
         self.MSELoss = KD_loss['MSELoss']
         self.lambda_kl = KD_loss['lambda_kl']
+        self.temperature = KD_loss['temperature']
     
     def train(self, teacher_loader, student_train_loader, student_val_loader, early_stopping):
-        self.model.train()
-        self.teacher_model.eval()
+        results = []
+        train_accuracies, val_accuracies = [], []
+        train_losses, val_losses = [], []
+
+        best_val_loss = float('inf')
+
+        for epoch in tqdm(range(self.epoch)):
+            train_loss, train_acc = self._train_epoch(teacher_loader, student_train_loader)
+            val_loss, val_acc = self._val_epoch(student_val_loader, mode="Validation")
+
+            self.scheduler.step()
+
+            train_accuracies.append(train_acc)
+            val_accuracies.append(val_acc)
+            train_losses.append(train_loss)
+            val_losses.append(val_loss)
+
+            epoch_result = {
+                'epoch': epoch + 1,
+                'train_loss': train_loss,
+                'train_accuracy': train_acc,
+                'val_loss': val_loss,
+                'val_accuracy': val_acc,
+            }
+            results.append(epoch_result)
+
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                torch.save(self.model.state_dict(), self.best_model_path)
+                self.logger.info(f"Epoch {epoch + 1}: 검증 손실이 감소했습니다. 최적의 모델을 {self.best_model_path}에 저장했습니다.")
+
+            self.logger.info(f"lr : {self.scheduler.get_last_lr()[0]} \n Epoch {epoch + 1}/{self.epoch}, \
+                        Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+            
+            early_stopping(val_loss)
+            if early_stopping.early_stop:
+                self.logger.info("Early stopping triggered. Training halted.")
+                break
+        
+        results_df = pd.DataFrame(results)
+        
+        with open(self.train_csv_path, 'w') as f:
+            for key, value in self.metadata.items():
+                f.write(f"# {key}: {value}\n")
+            f.write("\n")
+            results_df.to_csv(f, index=False)
+        
+        self.logger.info(f"Training results saved to {self.train_csv_path}")
+
+        self.logger.info(f"\n=== 학습 완료 요약 ===")
+        self.logger.info(f"최고 훈련 정확도: {max(train_accuracies):.4f}")
+        self.logger.info(f"최고 검증 정확도: {max(val_accuracies):.4f}")
+        self.logger.info(f"최종 훈련 손실: {train_losses[-1]:.4f}")
+        self.logger.info(f"최종 검증 손실: {val_losses[-1]:.4f}")
+        self.logger.info(f"최종 훈련 정확도: {train_accuracies[-1]:.4f}")
+        self.logger.info(f"최종 검증 정확도: {val_accuracies[-1]:.4f}")
 
     def _compute_gram_matrix(self, feat):
         B, C, N = feat.size()
@@ -239,8 +298,43 @@ class Trainer_for_KD(Trainer):
         return gram / N
 
     def _train_epoch(self, teacher_loader, student_loader):
-        results = []
-        train_accuracies, val_accuracies = [], []
-        train_losses, val_losses = [], []
+        self.model.train()
 
-        best_val_loss = float('inf')
+        total_loss = 0.0
+        correct = 0
+
+        for (x_s, y_s), (x_t, _) in zip(student_loader, teacher_loader):
+            x_s, y_s = x_s.to(self.device), y_s.to(self.device)
+            x_t = x_t.to(self.device)
+
+            self.optimizer.zero_grad()
+            student_logit = self.model(x_s)
+            teacher_logit = self.teacher_model(x_t)
+
+            student_ds = self.model.get_ds_outputs()
+            teacher_ds = self.teacher_model.get_ds_outputs()
+
+            ce_loss = self.cross_entropy(student_logit, y_s)
+            # ce_loss = self.focal(student_logit, y_s)
+
+            student_soft_label = nn.functional.log_softmax(student_logit / self.temperature, dim=1)
+            teacher_soft_label = nn.functional.softmax(teacher_logit / self.temperature, dim=1)
+            kl_loss = self.KLDivLoss(student_soft_label, teacher_soft_label) * (self.temperature ** 2)
+
+            mse_loss = 0
+            for idx, (s_feat, t_feat) in enumerate(zip(student_ds, teacher_ds)):
+                s_proj = self.projection[idx](s_feat)
+
+                s_gram = self._compute_gram_matrix(s_proj)
+                t_gram = self._compute_gram_matrix(t_feat)
+
+                mse_loss += self.MSELoss(s_gram, t_gram)
+            
+            loss = ce_loss + self.lambda_kl * kl_loss + self.lambda_aux * mse_loss
+            loss.backward()
+            self.optimizer.step()
+
+            total_loss += loss.item() * x_s.size(0)
+            correct += (student_logit.argmax(1) == y_s).sum().item()
+
+        return total_loss / len(student_loader.dataset), correct / len(student_loader.dataset)
