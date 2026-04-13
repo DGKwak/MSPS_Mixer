@@ -144,8 +144,8 @@ The table below compares this work with representative prior models using two me
 | DeiT             |        89.26 |                      5.5 |
 | MobileViT        |        88.13 |                      1.0 |
 | LH-ViT           |        92.10 |                      0.7 |
-| MSPS-Mixer       |        94.91 |                      1.6 |
-| MSPS-Mixer w/ KD |        93.22 |                      0.3 |
+| MSPS-Mixer       |        93.97 |                      1.6 |
+| MSPS-Mixer w/ KD |        93.26 |                      0.3 |
 
 Summary:
 
