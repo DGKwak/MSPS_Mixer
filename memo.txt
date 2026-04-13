@@ -1,2 +1,9 @@
 test accuracy : 93.97%
 lambda_aux: 0.25
+
+KD
+test accuracy : 91.84%
+lambda_aux: 0.25
+temperature: 1
+lambda_kl: 0.75
+
